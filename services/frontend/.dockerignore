@@ -1,0 +1,20 @@
+# Зависимости (их Docker должен установить сам внутри)
+node_modules
+npm-debug.log
+
+# Папки сборки (нам не нужны старые файлы с нашего компа)
+.next
+out
+build
+dist
+
+# Скрытые папки системы и Git
+.git
+.gitignore
+.vscode
+.env.local
+.DS_Store
+
+# Документация и тесты (обычно не нужны в продакшн-образе)
+README.md
+tests

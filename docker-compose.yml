@@ -1,0 +1,75 @@
+# version: '3.8'
+
+# services:
+#   # Наш фронтенд
+#   frontend:
+#     build: ./services/frontend
+#     ports:
+#       - "3000:3000"
+#     depends_on:
+#       - gateway
+
+#   # Главный бэкенд (Gateway)
+#   gateway:
+#     build: ./services/gateway
+#     ports:
+#       - "8000:8000"
+#     environment:
+#       - NLP_SERVICE_URL=http://nlp-worker:8001
+#       - DATABASE_URL=mongodb://mongodb:27017/tagger
+#     depends_on:
+#       - mongodb
+
+#   # ИИ сервис (Worker)
+#   nlp-worker:
+#     build: ./services/nlp-worker
+#     ports:
+#       - "8001:8001"
+
+#   # База данных
+#   mongodb:
+#     image: mongo:latest
+#     ports:
+#       - "27017:27017"
+#     volumes:
+#       - mongodb_data:/data/db
+
+# volumes:
+#   mongodb_data:
+
+services:
+  # Сервис ИИ (FastAPI)
+  nlp-worker:
+    build: ./services/nlp-worker
+    ports:
+      - "8001:8001"
+    volumes:
+    - ./services/nlp-worker:/app
+    networks:
+      - ai-network
+    env_file:
+      - .env
+    command: uvicorn main:app --host 0.0.0.0 --port 8001 --reload
+
+  # Фронтенд (Next.js)
+  frontend:
+    build: ./services/frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./services/frontend:/app  # Маунтим только папку фронтенда
+      - /app/node_modules          # Защищаем внутренние либы
+      - /app/.next                # Защищаем внутренний кэш сборки
+    environment:
+    # ВАЖНО: для клиентских запросов оставляем localhost, 
+      # но если используете SSR, понадобится другой подход
+      - NEXT_PUBLIC_API_URL=http://localhost:8001 # Чтобы фронт знал куда стучать
+      - WATCHPACK_POLLING=true #это для Hot Reload на Windows
+    networks:
+      - ai-network
+    depends_on:
+      - nlp-worker
+
+networks:
+  ai-network:
+    driver: bridge
