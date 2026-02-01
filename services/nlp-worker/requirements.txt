@@ -6,3 +6,4 @@ python-dotenv
 motor
 dnspython
 python-multipart
+pandas
