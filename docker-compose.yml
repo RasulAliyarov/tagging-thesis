@@ -1,75 +1,39 @@
-# version: '3.8'
-
-# services:
-#   # Наш фронтенд
-#   frontend:
-#     build: ./services/frontend
-#     ports:
-#       - "3000:3000"
-#     depends_on:
-#       - gateway
-
-#   # Главный бэкенд (Gateway)
-#   gateway:
-#     build: ./services/gateway
-#     ports:
-#       - "8000:8000"
-#     environment:
-#       - NLP_SERVICE_URL=http://nlp-worker:8001
-#       - DATABASE_URL=mongodb://mongodb:27017/tagger
-#     depends_on:
-#       - mongodb
-
-#   # ИИ сервис (Worker)
-#   nlp-worker:
-#     build: ./services/nlp-worker
-#     ports:
-#       - "8001:8001"
-
-#   # База данных
-#   mongodb:
-#     image: mongo:latest
-#     ports:
-#       - "27017:27017"
-#     volumes:
-#       - mongodb_data:/data/db
-
-# volumes:
-#   mongodb_data:
-
 services:
-  # Сервис ИИ (FastAPI)
+  # AI service (FastAPI)
   nlp-worker:
     build: ./services/nlp-worker
     ports:
       - "8001:8001"
     volumes:
-    - ./services/nlp-worker:/app
+      - ./services/nlp-worker:/app
     networks:
       - ai-network
     env_file:
       - .env
+    # Run FastAPI with auto-reload (development mode)
     command: uvicorn main:app --host 0.0.0.0 --port 8001 --reload
 
-  # Фронтенд (Next.js)
+  # Frontend (Next.js)
   frontend:
     build: ./services/frontend
     ports:
       - "3000:3000"
     volumes:
-      - ./services/frontend:/app  # Маунтим только папку фронтенда
-      - /app/node_modules          # Защищаем внутренние либы
-      - /app/.next                # Защищаем внутренний кэш сборки
+      - ./services/frontend:/app   # Mount only the frontend folder
+      - /app/node_modules          # Protect container-installed dependencies
+      - /app/.next                 # Protect Next.js build cache
     environment:
-    # ВАЖНО: для клиентских запросов оставляем localhost, 
-      # но если используете SSR, понадобится другой подход
-      - NEXT_PUBLIC_API_URL=http://localhost:8001 # Чтобы фронт знал куда стучать
-      - WATCHPACK_POLLING=true #это для Hot Reload на Windows
+      # IMPORTANT:
+      # For client-side requests we keep localhost,
+      # but if you use SSR, a different approach is required
+      - NEXT_PUBLIC_API_URL=http://localhost:8001  # API endpoint for the frontend
+      - WATCHPACK_POLLING=true                     # Enables hot reload on Windows
     networks:
       - ai-network
     depends_on:
       - nlp-worker
 
 networks:
+  # Custom bridge network for internal communication
   ai-network:
     driver: bridge
