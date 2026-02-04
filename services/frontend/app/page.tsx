@@ -69,12 +69,12 @@ export default function HomePage() {
               <span>Get Started</span>
               <ArrowRight className="w-5 h-5" />
             </Link>
-            <Link
-              href="/batch"
+            {/* <Link
+              href="/authorization"
               className="px-8 py-4 glass rounded-xl font-semibold hover:bg-slate-700/50 transition-all"
             >
-              Try Batch Processing
-            </Link>
+              Login
+            </Link> */}
           </div>
         </motion.div>
 

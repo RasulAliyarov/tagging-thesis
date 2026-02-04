@@ -1,9 +1,21 @@
+# Web Framework
 fastapi
 uvicorn
-pydantic
+python-multipart
+
+# AI & Data
 google-genai
-python-dotenv
+pandas
+pydantic[email]
+
+# Database
 motor
 dnspython
-python-multipart
-pandas
+
+# Security & Auth
+python-jose[cryptography]==3.3.0
+passlib==1.7.4
+bcrypt==3.2.2
+
+# Environment
+python-dotenv

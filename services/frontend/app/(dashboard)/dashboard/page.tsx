@@ -1,39 +1,53 @@
-import { FileText, Smile, AlertCircle } from 'lucide-react'
-import DashboardClient from './DashboardClient'
-import { AnalysisResult } from '@/types'
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import DashboardClient from './DashboardClient';
+import { AnalysisResult } from '@/types';
 
-// This function runs ONLY on the server
 async function getDashboardData() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('token')?.value;
+
+  if (!token) return null;
+
   try {
-    // Note: Inside Docker, we use the service name 'nlp-worker' instead of 'localhost'
-    const res = await fetch(`${process.env.INTERNAL_API_URL}/api/analyses`, { 
-      cache: 'no-store' // Ensure we get fresh data every time (SSR)
-    })
-    
-    if (!res.ok) throw new Error('Failed to fetch data')
-    
-    const data: AnalysisResult[] = await res.json()
-    return data
+    const res = await fetch(`${process.env.INTERNAL_API_URL}/api/analyze/history`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      next: { revalidate: 0 } // Equivalent to cache: 'no-store'
+    });
+
+    if (!res.ok) {
+      if (res.status === 401) return 'unauthorized';
+      throw new Error('Failed to fetch data');
+    }
+
+    return await res.json() as AnalysisResult[];
   } catch (error) {
-    console.error("Dashboard Fetch Error:", error)
-    return []
+    console.error("Dashboard Fetch Error:", error);
+    return [];
   }
 }
 
 export default async function DashboardPage() {
-  const history = await getDashboardData()
+  const data = await getDashboardData();
 
-  // Data processing for summary cards
-  const totalProcessed = history.length
-  const highPriority = history.filter(i => i.priority === 'High').length
+  // Handle Auth failure at the page level
+  if (data === null || data === 'unauthorized') {
+    redirect('/login');
+  }
+
+  const history = data as AnalysisResult[];
+
+  // --- Server-Side Data Processing ---
+  const totalProcessed = history.length;
+  const highPriority = history.filter(i => i.priority === 'High').length;
+  const positiveCount = history.filter(i => i.sentiment === 'Positive').length;
   
-  // Logic for Sentiment Score (e.g., scale 1-10)
-  const positiveCount = history.filter(i => i.sentiment === 'Positive').length
   const avgSentiment = totalProcessed > 0 
     ? ((positiveCount / totalProcessed) * 10).toFixed(1) 
-    : "0"
+    : "0";
 
-  // Data for Charts
   const chartData = {
     sentiment: {
       positive: positiveCount,
@@ -45,16 +59,16 @@ export default async function DashboardPage() {
       medium: history.filter(i => i.priority === 'Medium').length,
       high: highPriority,
     }
-  }
+  };
 
   return (
     <div className="p-6 lg:p-8">
-      {/* Passing all calculated data to a Client Component for animations and charts */}
+      {/* We pass the processed data to the Client Component for UI/Interactivity */}
       <DashboardClient 
         history={history} 
         stats={{ totalProcessed, avgSentiment, highPriority }}
         chartData={chartData}
       />
     </div>
-  )
+  );
 }

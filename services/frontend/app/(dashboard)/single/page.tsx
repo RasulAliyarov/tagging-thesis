@@ -21,12 +21,14 @@ export default function SinglePage() {
 
     setAnalyzing(true)
     setError(null)
+    const token = localStorage.getItem('token');
 
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/analyze`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ text: inputText }),
       })
@@ -93,7 +95,7 @@ export default function SinglePage() {
             className="w-full h-64 bg-slate-900/50 border border-slate-700 rounded-xl p-4 text-slate-200 focus:outline-none focus:border-blue-500 transition-colors resize-none"
             placeholder="Paste customer feedback, review, or any text here..."
           />
-          
+
           {error && (
             <div className="mt-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center text-red-400 text-sm">
               <AlertCircle className="w-4 h-4 mr-2" />
@@ -150,10 +152,10 @@ export default function SinglePage() {
                   <span className="text-xs font-mono text-blue-400">{results.confidence}%</span>
                 </div>
                 <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                  <motion.div 
-                    initial={{ width: 0 }} 
-                    animate={{ width: `${results.confidence}%` }} 
-                    className="h-full bg-blue-500" 
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${results.confidence}%` }}
+                    className="h-full bg-blue-500"
                   />
                 </div>
               </div>
@@ -179,10 +181,10 @@ export default function SinglePage() {
           </motion.div>
         ) : (
           <div className="glass rounded-2xl border border-dashed border-slate-700 flex items-center justify-center p-12">
-             <div className="text-center opacity-40">
-                <Search className="w-12 h-12 mx-auto mb-4 text-slate-500" />
-                <p>Waiting for input data...</p>
-             </div>
+            <div className="text-center opacity-40">
+              <Search className="w-12 h-12 mx-auto mb-4 text-slate-500" />
+              <p>Waiting for input data...</p>
+            </div>
           </div>
         )}
       </div>

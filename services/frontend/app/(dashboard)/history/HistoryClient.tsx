@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { Search, ChevronLeft, ChevronRight, Trash2, X, Edit3, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AnalysisResult } from '@/types'
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/app/context/AuthContext'
 
 interface Props {
   initialHistories: AnalysisResult[]
@@ -11,14 +13,17 @@ interface Props {
 
 export default function HistoryClient({ initialHistories }: Props) {
   // Data states
-  const [analyses, setAnalyses] = useState<AnalysisResult[]>(initialHistories)
-  const [currentPage, setCurrentPage] = useState(1)
-  
+  const [history, setHistory] = useState<AnalysisResult[]>(initialHistories)
   // Modal states
   const [selectedItem, setSelectedItem] = useState<AnalysisResult | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+      const { token } = useAuth();
+  
+  const router = useRouter();
 
   // Edit form state
   const [editForm, setEditForm] = useState({
@@ -53,23 +58,30 @@ export default function HistoryClient({ initialHistories }: Props) {
     }
   }
 
-  // Delete handler
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this record?')) return
+  const handleDelete = async (itemId: string) => {
+    if (!confirm('Are you sure you want to delete this analysis?')) return;
 
+    setDeletingId(itemId);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/analyses/${id}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/analyze/history/${itemId}`, {
         method: 'DELETE',
-      })
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
       if (res.ok) {
-        setAnalyses(prev => prev.filter(item => item.id !== id))
-        setIsModalOpen(false)
+        // Force a re-fetch of data, ensuring UI consistency without manual state manipulation getHistory()
+        router.refresh();
+      } else {
+        alert('Failed to delete item');
       }
     } catch (err) {
-      alert("Delete failed. Check console.")
-      console.error(err)
+      console.error(err);
+    } finally {
+      setDeletingId(null);
     }
-  }
+  };
 
   // Save handler
   const handleSave = async (e: React.FormEvent) => {
@@ -78,15 +90,18 @@ export default function HistoryClient({ initialHistories }: Props) {
 
     setIsSaving(true)
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/analyses/${selectedItem.id}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/analyze/history/${selectedItem.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(editForm)
       })
 
       if (res.ok) {
         const updatedItem = await res.json()
-        setAnalyses(prev => prev.map(item => item.id === selectedItem.id ? updatedItem : item))
+        setHistory(prev => prev.map(item => item.id === selectedItem.id ? updatedItem : item))
         setSelectedItem(updatedItem) // Update selected item
         setIsEditing(false)
       }
@@ -120,9 +135,9 @@ export default function HistoryClient({ initialHistories }: Props) {
           <option>Low</option>
         </select>
         <div className="md:col-span-2 relative">
-          <input 
-            type="text" 
-            placeholder="Search in text..." 
+          <input
+            type="text"
+            placeholder="Search in text..."
             className="w-full px-4 py-3 pl-12 bg-slate-900/50 border border-slate-700 rounded-xl text-slate-200 outline-none focus:border-blue-500"
           />
           <Search className="absolute left-4 top-3.5 w-5 h-5 text-slate-500" />
@@ -131,7 +146,7 @@ export default function HistoryClient({ initialHistories }: Props) {
 
       {/* List */}
       <div className="space-y-4 mb-8">
-        {analyses.map((item, index) => (
+        {history.map((item, index) => (
           <motion.div
             key={item.id}
             initial={{ opacity: 0, x: -20 }}
@@ -151,12 +166,13 @@ export default function HistoryClient({ initialHistories }: Props) {
                   <span>{new Date(item.timestamp).toLocaleString()}</span>
                 </div>
               </div>
-              <button
-                onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
-                className="p-2 opacity-0 group-hover:opacity-100 hover:bg-red-500/20 text-slate-500 hover:text-red-400 rounded-lg transition-all"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+           <button 
+      onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
+      disabled={deletingId === item.id}
+      className="text-red-400 hover:text-red-300 transition-colors p-2"
+    >
+      {deletingId === item.id ? <Loader2 className="animate-spin w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
+    </button>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -180,13 +196,13 @@ export default function HistoryClient({ initialHistories }: Props) {
       <AnimatePresence>
         {isModalOpen && selectedItem && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setIsModalOpen(false)}
               className="absolute inset-0 bg-black/80 backdrop-blur-md"
             />
-            
-            <motion.div 
+
+            <motion.div
               initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }}
               className="relative glass w-full max-w-2xl rounded-3xl p-8 border border-white/10 shadow-2xl overflow-hidden"
             >
@@ -205,16 +221,16 @@ export default function HistoryClient({ initialHistories }: Props) {
                     <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Content</label>
                     <textarea
                       value={editForm.text}
-                      onChange={(e) => setEditForm({...editForm, text: e.target.value})}
+                      onChange={(e) => setEditForm({ ...editForm, text: e.target.value })}
                       className="w-full bg-black/40 border border-slate-700 rounded-2xl p-4 text-white h-40 focus:border-blue-500 outline-none transition-all"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-6">
                     <div>
                       <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Sentiment</label>
-                      <select 
+                      <select
                         value={editForm.sentiment}
-                        onChange={(e) => setEditForm({...editForm, sentiment: e.target.value})}
+                        onChange={(e) => setEditForm({ ...editForm, sentiment: e.target.value })}
                         className="w-full bg-black/40 border border-slate-700 rounded-xl p-3 text-white outline-none focus:border-blue-500"
                       >
                         <option value="Positive">Positive</option>
@@ -224,9 +240,9 @@ export default function HistoryClient({ initialHistories }: Props) {
                     </div>
                     <div>
                       <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Priority</label>
-                      <select 
+                      <select
                         value={editForm.priority}
-                        onChange={(e) => setEditForm({...editForm, priority: e.target.value})}
+                        onChange={(e) => setEditForm({ ...editForm, priority: e.target.value })}
                         className="w-full bg-black/40 border border-slate-700 rounded-xl p-3 text-white outline-none focus:border-blue-500"
                       >
                         <option value="Low">Low</option>
@@ -236,16 +252,16 @@ export default function HistoryClient({ initialHistories }: Props) {
                     </div>
                   </div>
                   <div className="flex space-x-4 pt-4">
-                    <button 
+                    <button
                       disabled={isSaving}
-                      type="submit" 
+                      type="submit"
                       className="flex-1 py-4 bg-blue-600 hover:bg-blue-500 rounded-2xl font-bold text-white transition-all flex items-center justify-center"
                     >
                       {isSaving ? <Loader2 className="animate-spin mr-2" /> : 'Save Changes'}
                     </button>
-                    <button 
-                      type="button" 
-                      onClick={() => setIsEditing(false)} 
+                    <button
+                      type="button"
+                      onClick={() => setIsEditing(false)}
                       className="flex-1 py-4 bg-slate-800 hover:bg-slate-700 rounded-2xl font-bold text-white transition-all"
                     >
                       Cancel
@@ -278,13 +294,13 @@ export default function HistoryClient({ initialHistories }: Props) {
                   </div>
 
                   <div className="flex space-x-4">
-                    <button 
+                    <button
                       onClick={handleStartEdit}
                       className="flex-1 py-4 bg-white/5 hover:bg-white/10 rounded-2xl font-bold text-white border border-white/10 flex items-center justify-center space-x-3 transition-all"
                     >
                       <Edit3 className="w-5 h-5" /> <span>Modify</span>
                     </button>
-                    <button 
+                    <button
                       onClick={() => handleDelete(selectedItem.id)}
                       className="flex-1 py-4 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-2xl font-bold flex items-center justify-center space-x-3 transition-all"
                     >

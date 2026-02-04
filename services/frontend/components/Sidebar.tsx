@@ -12,6 +12,7 @@ import {
   BrainCircuit,
   LogOut,
 } from 'lucide-react'
+import { useAuth } from '@/app/context/AuthContext'
 
 interface SidebarProps {
   isOpen: boolean
@@ -20,6 +21,11 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname()
+  const { logout } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+  };
 
   const navItems = [
     { href: '/', icon: Home, label: 'Home' },
@@ -93,7 +99,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 <p className="text-xs text-slate-400">john@company.com</p>
               </div>
             </div>
-            <button className="w-full py-2 px-3 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-xs font-medium transition-colors flex items-center justify-center space-x-2">
+            <button
+              onClick={() => handleLogout()}
+              className="w-full py-2 px-3 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-xs font-medium transition-colors flex items-center justify-center space-x-2">
               <LogOut className="w-3 h-3" />
               <span>Sign Out</span>
             </button>
