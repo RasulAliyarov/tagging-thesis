@@ -49,3 +49,16 @@ export interface UserSettings {
     batch_complete: boolean;
   };
 }
+
+
+export interface User {
+  username: string;
+  email: string;
+  fullname: string;
+}
+
+export interface AuthTokenResponseType {
+  access_token: string;
+  token_type: string;
+  user: User;
+}

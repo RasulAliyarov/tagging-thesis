@@ -25,6 +25,7 @@ export default function HistoryClient({ initialHistories }: Props) {
   const [editForm, setEditForm] = useState<AnalysisResult | null>(null)
 
   const { token } = useAuth()
+  const router = useRouter()
 
   /* ------------------ actions ------------------ */
   const handleStartEdit = () => {
@@ -111,89 +112,52 @@ export default function HistoryClient({ initialHistories }: Props) {
   /* ------------------ render ------------------ */
   return (
     <div className="p-6 lg:p-8">
-      {/* Header */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-        <h2 className="text-3xl font-bold mb-2 text-white">Analysis Records</h2>
-        <p className="text-slate-400">Manage and audit AI-generated insights</p>
-      </motion.div>
+      <h2 className="text-3xl font-bold mb-6 text-white">Analysis Records</h2>
 
-      {/* Filters (Mockup for now) */}
-      <div className="glass rounded-2xl p-6 mb-6 grid md:grid-cols-4 gap-4">
-        <select className="px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-slate-200 outline-none focus:border-blue-500">
-          <option>All Sentiments</option>
-          <option>Positive</option>
-          <option>Neutral</option>
-          <option>Negative</option>
-        </select>
-        <select className="px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-slate-200 outline-none focus:border-blue-500">
-          <option>All Priorities</option>
-          <option>High</option>
-          <option>Medium</option>
-          <option>Low</option>
-        </select>
+      <button
+        onClick={handleExport}
+        className="mb-6 flex items-center gap-2 px-4 py-2 bg-slate-700 rounded-xl"
+      >
+        <Download className="w-4 h-4" /> Export Excel
+      </button>
 
-        <button
-          onClick={handleExport}
-          className="flex items-center w-fit gap-2 px-4 py-3 bg-slate-700/50 hover:bg-slate-700 text-slate-200 rounded-xl  transition-all"
-        >
-          <Download className="w-4 h-4" />
-          Export to Excel
-        </button>
-
-        <div className="md:col-span-2 relative">
-          <input
-            type="text"
-            placeholder="Search in text..."
-            className="w-full px-4 py-3 pl-12 bg-slate-900/50 border border-slate-700 rounded-xl text-slate-200 outline-none focus:border-blue-500"
-          />
-          <Search className="absolute left-4 top-3.5 w-5 h-5 text-slate-500" />
-        </div>
-      </div>
-
-      {/* List */}
-      <div className="space-y-4 mb-8">
-        {history.map((item, index) => (
+      <div className="space-y-4">
+        {history.map(item => (
           <motion.div
             key={item.id}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.05 }}
-            onClick={() => { setSelectedItem(item); setIsModalOpen(true); setIsEditing(false); }}
-            className="glass rounded-2xl p-6 hover-lift cursor-pointer group border border-white/5"
+            onClick={() => {
+              setSelectedItem(item)
+              setIsModalOpen(true)
+              setIsEditing(false)
+            }}
+            className="glass p-6 rounded-2xl cursor-pointer border border-white/5"
           >
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex-1">
-                <p className="text-slate-200 mb-2 line-clamp-2 group-hover:text-blue-400 transition-colors">
-                  {item.text}
-                </p>
-                <div className="flex items-center space-x-4 text-xs text-slate-500 font-mono">
-                  <span>ID: #{item.id.slice(-6)}</span>
-                  <span>•</span>
-                  <span>{new Date(item.timestamp).toLocaleString()}</span>
-                </div>
+            <div>
+              <p className="text-slate-200 mb-2 line-clamp-2">{item.text}</p>
+
+              <div className="flex gap-2">
+                <span className={`px-3 py-1 rounded-full text-xs ${getSentimentColor(item.sentiment)}`}>
+                  {item.sentiment}
+                </span>
+                <span className={`px-3 py-1 rounded-full text-xs ${getPriorityColor(item.priority)}`}>
+                  {item.priority}
+                </span>
               </div>
-              <button
-                onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
-                disabled={deletingId === item.id}
-                className="text-red-400 hover:text-red-300 transition-colors p-2"
-              >
-                {deletingId === item.id ? <Loader2 className="animate-spin w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
-              </button>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <span className={`px-3 py-1 rounded-full font-medium text-[10px] uppercase tracking-wider ${getSentimentColor(item.sentiment)}`}>
-                {item.sentiment}
-              </span>
-              <span className={`px-3 py-1 rounded-full font-medium text-[10px] uppercase tracking-wider ${getPriorityColor(item.priority)}`}>
-                {item.priority}
-              </span>
-              {item.tags?.map(tag => (
-                <span key={tag} className="px-3 py-1 rounded-full bg-slate-800 text-slate-400 text-[10px] border border-slate-700 font-mono">
-                  #{tag}
-                </span>
-              ))}
-            </div>
+            <button
+              onClick={e => {
+                e.stopPropagation()
+                handleDelete(item.id)
+              }}
+              className="mt-4 text-red-400"
+            >
+              {deletingId === item.id ? (
+                <Loader2 className="animate-spin w-4 h-4" />
+              ) : (
+                <Trash2 className="w-4 h-4" />
+              )}
+            </button>
           </motion.div>
         ))}
       </div>

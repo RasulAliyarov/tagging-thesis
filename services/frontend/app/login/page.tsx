@@ -2,16 +2,24 @@
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Lock, User, Loader2, Sparkles, ArrowLeft } from 'lucide-react'
+import { Lock, User, Loader2, Sparkles, ArrowLeft, Mail, UserCircleIcon } from 'lucide-react'
 import Link from 'next/link'
 import { useAuth } from '@/app/context/AuthContext'
 import Cookies from 'js-cookie';
+import { toast } from 'react-hot-toast'
+import { AuthTokenResponseType } from '@/types'
 
 export default function LoginPage() {
+    const authExample = {
+        email: '',
+        fullname: '',
+        username: '',
+        password: ''
+    }
+
     const [isLogin, setIsLogin] = useState(true)
     const [loading, setLoading] = useState(false)
-    const [username, setUsername] = useState('')
-    const [password, setPassword] = useState('')
+    const [auth, setAuth] = useState(authExample)
     const { login } = useAuth();
 
     const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -20,36 +28,53 @@ export default function LoginPage() {
         e.preventDefault();
         setLoading(true);
 
-        const formData = new FormData();
-        formData.append('username', username);
-        formData.append('password', password);
-
         try {
             const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
+
+            const payload: any = isLogin
+                ? { email: auth.email, password: auth.password }
+                : {
+                    username: auth.username,
+                    email: auth.email,
+                    password: auth.password,
+                    fullname: auth.fullname,
+                };
+
             const response = await fetch(`${API_URL}${endpoint}`, {
                 method: 'POST',
-                body: formData,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
             });
-
-            if (!response.ok) throw new Error('Auth failed');
 
             const data = await response.json();
 
+            if (!response.ok) {
+                // FastAPI sends errors in "detail" field
+                const message = data.detail?.[0]?.msg || data.detail || 'Failed to authenticate user';
+                toast.error(message);
+                throw new Error(message);
+            }
+
             if (isLogin) {
-                // login(data.access_token);
-                Cookies.set('token', data.access_token, { expires: 1, secure: true })
-                login(data.access_token);
+                // login: save token & update context
+                Cookies.set('token', data.access_token, { expires: 1, secure: true });
+                login(data); // your context function
+                toast.success('Logged in successfully!');
             } else {
+                // registration: switch to login view
                 setIsLogin(true);
-                alert('Account created! Please login.');
+                toast.success('Account created successfully! Please log in.');
             }
         } catch (err) {
             console.error(err);
-            alert('Invalid credentials');
         } finally {
             setLoading(false);
+            setAuth(authExample); // reset form
         }
     };
+
 
     return (
         <div className="min-h-screen flex items-center justify-center p-6 bg-[#0f172a]">
@@ -83,13 +108,50 @@ export default function LoginPage() {
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-4">
+                        {
+                            !isLogin && (
+                                <>
+                                    <div className="relative">
+                                        <UserCircleIcon className="absolute left-4 top-3.5 w-5 h-5 text-slate-500" />
+                                        <input
+                                            type="text"
+                                            placeholder="Full Name"
+                                            required
+                                            value={auth.fullname}
+                                            onChange={(e) =>
+                                                setAuth(prev => ({ ...prev, fullname: e.target.value }))
+                                            }
+                                            className="w-full bg-slate-900/50 border border-slate-700 rounded-xl py-3.5 pl-12 pr-4 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                                        />
+                                    </div>
+                                    <div className="relative">
+                                        <User className="absolute left-4 top-3.5 w-5 h-5 text-slate-500" />
+                                        <input
+                                            type="text"
+                                            placeholder="Username"
+                                            required
+                                            value={auth.username}
+                                            onChange={(e) =>
+                                                setAuth(prev => ({ ...prev, username: e.target.value }))
+                                            }
+                                            className="w-full bg-slate-900/50 border border-slate-700 rounded-xl py-3.5 pl-12 pr-4 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                                        />
+                                    </div>
+                                </>
+
+                            )
+                        }
+
                         <div className="relative">
-                            <User className="absolute left-4 top-3.5 w-5 h-5 text-slate-500" />
+                            <Mail className="absolute left-4 top-3.5 w-5 h-5 text-slate-500" />
                             <input
-                                type="text"
-                                placeholder="Username"
+                                type="email"
+                                placeholder="Email"
                                 required
-                                onChange={(e) => setUsername(e.target.value)}
+                                value={auth.email}
+                                onChange={(e) =>
+                                    setAuth(prev => ({ ...prev, email: e.target.value }))
+                                }
                                 className="w-full bg-slate-900/50 border border-slate-700 rounded-xl py-3.5 pl-12 pr-4 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
                             />
                         </div>
@@ -99,10 +161,16 @@ export default function LoginPage() {
                                 type="password"
                                 placeholder="Password"
                                 required
-                                onChange={(e) => setPassword(e.target.value)}
+                                value={auth.password}
+                                onChange={(e) =>
+                                    setAuth(prev => ({ ...prev, password: e.target.value }))
+                                }
                                 className="w-full bg-slate-900/50 border border-slate-700 rounded-xl py-3.5 pl-12 pr-4 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
                             />
                         </div>
+
+
+
                         <button
                             type="submit"
                             disabled={loading}

@@ -1,9 +1,13 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useTransition } from 'react'
 import { UploadCloud, Loader, CheckCircle, Download, AlertTriangle } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { AnalysisResult, BatchProcessingLog } from '@/types'
+import { batchAnalyze } from '@/app/actions/analyze'
+
+type LogType = 'info' | 'success' | 'warning' | 'error';
+
 
 export default function BatchPage() {
   const [isDragging, setIsDragging] = useState(false)
@@ -13,13 +17,15 @@ export default function BatchPage() {
   const [results, setResults] = useState<AnalysisResult[]>([])
   const [showResults, setShowResults] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+    const [isPending, startTransition] = useTransition();
+ 
 
-  const addLog = (message: string, type: 'info' | 'success' | 'warning' | 'error') => {
+const addLog = (message: string, type: LogType) => {
     const timestamp = new Date().toLocaleTimeString([], { hour12: false });
     setLogs(prev => [...prev, { timestamp, message, type }]);
-  }
+  };
 
-  const uploadFile = async (file: File) => {
+  const uploadFile = (file: File) => {
     if (!file.name.endsWith('.csv')) {
       addLog('Error: Please upload a valid CSV file', 'error');
       return;
@@ -29,42 +35,34 @@ export default function BatchPage() {
     setShowResults(false);
     setProgress(10);
     setLogs([]);
-    
+
     addLog(`Starting analysis for: ${file.name}`, 'info');
     addLog('Uploading to server...', 'info');
 
     const formData = new FormData();
     formData.append('file', file);
 
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/batch-analyze`, {
-        method: 'POST',
-        body: formData,
-      });
+    startTransition(async () => {
+      try {
+        const data = await batchAnalyze(formData);
 
-      if (!response.ok) throw new Error(`Server responded with ${response.status}`);
+        setProgress(50);
+        addLog('Server is processing with Gemini AI...', 'warning');
 
-      setProgress(50);
-      addLog('Server is processing with Gemini AI...', 'warning');
-      
-      const data = await response.json();
-      
-      // Mapping Backend tags to Frontend logic if necessary
-      setResults(data);
-      setProgress(100);
-      addLog(`Successfully analyzed ${data.length} entries`, 'success');
-      
-      setTimeout(() => {
+        setResults(data);
+        setProgress(100);
+        addLog(`Successfully analyzed ${data.length} entries`, 'success');
+
+        setTimeout(() => {
+          setIsProcessing(false);
+          setShowResults(true);
+        }, 800);
+      } catch (err: any) {
+        addLog(`Critical Error: ${err.message}`, 'error');
         setIsProcessing(false);
-        setShowResults(true);
-      }, 800);
-
-    } catch (error: any) {
-      addLog(`Critical Error: ${error.message}`, 'error');
-      setIsProcessing(false);
-    }
+      }
+    });
   };
-
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
@@ -114,12 +112,12 @@ export default function BatchPage() {
       </motion.div>
 
       {/* Hidden File Input */}
-      <input 
-        type="file" 
-        ref={fileInputRef} 
-        onChange={handleFileSelect} 
-        accept=".csv" 
-        className="hidden" 
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileSelect}
+        accept=".csv"
+        className="hidden"
       />
 
       {/* Upload Zone */}
@@ -134,9 +132,8 @@ export default function BatchPage() {
             onDragLeave={() => setIsDragging(false)}
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
-            className={`border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-all ${
-              isDragging ? 'border-blue-500 bg-blue-500/10' : 'border-slate-700 hover:border-slate-500'
-            }`}
+            className={`border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-all ${isDragging ? 'border-blue-500 bg-blue-500/10' : 'border-slate-700 hover:border-slate-500'
+              }`}
           >
             <div className="w-16 h-16 rounded-full bg-blue-600/20 flex items-center justify-center mx-auto mb-4">
               <UploadCloud className="w-8 h-8 text-blue-400" />
@@ -157,9 +154,9 @@ export default function BatchPage() {
             </h3>
             <span className="font-mono text-sm text-blue-400">{progress}%</span>
           </div>
-          
+
           <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden mb-6">
-            <motion.div 
+            <motion.div
               className="h-full bg-gradient-to-r from-blue-500 to-indigo-600"
               initial={{ width: 0 }}
               animate={{ width: `${progress}%` }}
@@ -186,15 +183,15 @@ export default function BatchPage() {
               Batch Results
             </h3>
             <div className="flex space-x-3">
-               <button 
+              <button
                 onClick={() => { setShowResults(false); setResults([]); }}
                 className="px-4 py-2 text-sm text-slate-400 hover:text-white transition-colors"
-               >
-                 Clear
-               </button>
-               <button className="px-4 py-2 bg-blue-600 rounded-lg text-sm font-medium hover:bg-blue-500 flex items-center">
-                 <Download className="w-4 h-4 mr-2" /> Export CSV
-               </button>
+              >
+                Clear
+              </button>
+              <button className="px-4 py-2 bg-blue-600 rounded-lg text-sm font-medium hover:bg-blue-500 flex items-center">
+                <Download className="w-4 h-4 mr-2" /> Export CSV
+              </button>
             </div>
           </div>
 

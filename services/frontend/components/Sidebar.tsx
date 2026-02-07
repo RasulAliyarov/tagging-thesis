@@ -21,7 +21,7 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname()
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
 
   const handleLogout = () => {
     logout();
@@ -37,6 +37,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   ]
 
   return (
+
     <>
       {/* Mobile Overlay */}
       {isOpen && (
@@ -95,8 +96,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             <div className="flex items-center space-x-3 mb-3">
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500" />
               <div>
-                <p className="font-semibold text-sm">John Doe</p>
-                <p className="text-xs text-slate-400">john@company.com</p>
+                <p className="font-semibold text-sm">{user?.fullname || "User"}</p>
+                <p className="text-xs text-slate-400">{user?.email || "user@company.com"}</p>
               </div>
             </div>
             <button

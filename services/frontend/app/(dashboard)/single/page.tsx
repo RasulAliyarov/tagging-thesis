@@ -1,13 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import { Edit3, Brain, Sparkles, Search, AlertCircle } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { analyzeSentence } from '@/app/actions/analyze';
 
 export default function SinglePage() {
   const [inputText, setInputText] = useState('')
   const [analyzing, setAnalyzing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+    const [isPending, startTransition] = useTransition();
+
   const [results, setResults] = useState<{
     sentiment: 'Positive' | 'Neutral' | 'Negative'
     priority: 'Low' | 'Medium' | 'High'
@@ -21,23 +24,21 @@ export default function SinglePage() {
 
     setAnalyzing(true)
     setError(null)
-    const token = localStorage.getItem('token');
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/analyze`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ text: inputText }),
-      })
+      // const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/analyze`, {
+      //   method: 'POST',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //     'Authorization': `Bearer ${token}`
+      //   },
+      //   body: JSON.stringify({ text: inputText }),
+      // })
 
-      if (!response.ok) {
-        throw new Error('Failed to connect to the analysis server')
-      }
 
-      const data = await response.json()
+      startTransition(async () => {
+      const data = await analyzeSentence(inputText);
+      
 
       // Mapping Backend (snake_case) to Frontend (camelCase)
       setResults({
@@ -47,6 +48,15 @@ export default function SinglePage() {
         keyPhrases: data.tags || [],
         detailedAnalysis: data.detailed_analysis || 'No detailed analysis provided.',
       })
+    });
+
+      // if (!response.ok) {
+      //   throw new Error('Failed to connect to the analysis server')
+      // }
+
+      // const data = await response.json()
+
+      
     } catch (err: any) {
       setError(err.message || 'Something went wrong')
       console.error('Analysis error:', err)

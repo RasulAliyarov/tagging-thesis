@@ -142,7 +142,7 @@ import pandas as pd
 import asyncio
 from fastapi import UploadFile, File
 
-@router.post("/batch")
+@router.post("/batch-analyze")
 async def batch_analyze(
     file: UploadFile = File(...), 
     current_user: dict = Depends(get_current_user), 
@@ -199,7 +199,8 @@ async def batch_analyze(
                 "tags": ai_data.get('tags', [])
             }
             
-            await db.analyses.insert_one(record)
+            await db.analyses.insert_one(record.copy())
+            
             final_results.append(record)
             current_num += 1
             

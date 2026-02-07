@@ -1,20 +1,20 @@
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import DashboardClient from './DashboardClient';
 import { AnalysisResult } from '@/types';
+import { cookies } from 'next/headers';
 
 async function getDashboardData() {
   const cookieStore = await cookies();
   const token = cookieStore.get('token')?.value;
 
-  if (!token) return null;
+  if (!token) return 'unauthorized';
 
   try {
     const res = await fetch(`${process.env.INTERNAL_API_URL}/api/analyze/history`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
-      next: { revalidate: 0 } // Equivalent to cache: 'no-store'
+      next: { revalidate: 0 } // to cache: 'no-store'
     });
 
     if (!res.ok) {
@@ -32,8 +32,9 @@ async function getDashboardData() {
 export default async function DashboardPage() {
   const data = await getDashboardData();
 
-  // Handle Auth failure at the page level
-  if (data === null || data === 'unauthorized') {
+  // Redirect if unauthorized
+  if (data === 'unauthorized') {
+
     redirect('/login');
   }
 
@@ -43,9 +44,9 @@ export default async function DashboardPage() {
   const totalProcessed = history.length;
   const highPriority = history.filter(i => i.priority === 'High').length;
   const positiveCount = history.filter(i => i.sentiment === 'Positive').length;
-  
-  const avgSentiment = totalProcessed > 0 
-    ? ((positiveCount / totalProcessed) * 10).toFixed(1) 
+
+  const avgSentiment = totalProcessed > 0
+    ? ((positiveCount / totalProcessed) * 10).toFixed(1)
     : "0";
 
   const chartData = {
@@ -64,8 +65,8 @@ export default async function DashboardPage() {
   return (
     <div className="p-6 lg:p-8">
       {/* We pass the processed data to the Client Component for UI/Interactivity */}
-      <DashboardClient 
-        history={history} 
+      <DashboardClient
+        history={history}
         stats={{ totalProcessed, avgSentiment, highPriority }}
         chartData={chartData}
       />

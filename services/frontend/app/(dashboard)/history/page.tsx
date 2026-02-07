@@ -1,16 +1,16 @@
-import { cookies } from 'next/headers';
 import HistoryClient from './HistoryClient';
+import { cookies } from 'next/headers';
 
 async function getHistory() {
-    const cookieStore = await cookies(); 
+    const cookieStore = await cookies();
     const token = cookieStore.get('token')?.value;
 
-    if (!token) return null; 
+    if (!token) return null;
 
     // Now we fetch from the internal Docker network
     const res = await fetch(`${process.env.INTERNAL_API_URL}/api/analyze/history`, {
         headers: {
-            'Authorization': `Bearer ${token}`, 
+            'Authorization': `Bearer ${token}`,
         },
         cache: 'no-store',
     });

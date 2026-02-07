@@ -1,10 +1,8 @@
 'use client'
-
-import { useEffect, useState } from 'react'
 import { Menu, Loader2 } from 'lucide-react'
 import Sidebar from '@/components/Sidebar'
-import { useRouter } from 'next/navigation'
-import { useAuth } from '@/app/context/AuthContext'
+import { AuthProvider, useAuth } from '@/app/context/AuthContext'
+import { useState } from 'react'
 
 export default function DashboardLayout({
   children,
@@ -12,27 +10,14 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { token, isLoading } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!isLoading && !token) {
-      router.push('/login');
-    }
-  }, [token, isLoading, router])
+  const { isLoading } = useAuth();
 
   if (isLoading) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-[#0f172a]">
         <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
       </div>
-    )
-  }
-
-  // 2. If no token, return null (the useEffect will handle the redirect)
-  // This prevents the "children" from rendering and throwing errors
-  if (!token) {
-    return null
+    );
   }
 
   return (
