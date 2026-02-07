@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Search, ChevronLeft, ChevronRight, Trash2, X, Edit3, Loader2 } from 'lucide-react'
+import { Search, ChevronLeft, ChevronRight, Trash2, X, Edit3, Loader2, Download } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AnalysisResult } from '@/types'
 import { useRouter } from 'next/navigation';
@@ -21,8 +21,8 @@ export default function HistoryClient({ initialHistories }: Props) {
   const [isSaving, setIsSaving] = useState(false)
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
-      const { token } = useAuth();
-  
+  const { token } = useAuth();
+
   const router = useRouter();
 
   // Edit form state
@@ -92,7 +92,7 @@ export default function HistoryClient({ initialHistories }: Props) {
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/analyze/history/${selectedItem.id}`, {
         method: 'PUT',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
@@ -111,6 +111,38 @@ export default function HistoryClient({ initialHistories }: Props) {
       setIsSaving(false)
     }
   }
+
+  const handleExport = async () => {
+    const token = localStorage.getItem('token');
+
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/analyze/export/excel`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) throw new Error('Download failed');
+
+      // Convert response to blob
+      const blob = await res.blob();
+
+      // Create a temporary URL for the blob and trigger a download
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `analysis_report_${new Date().toLocaleDateString()}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+    } catch (error) {
+      console.error("Export error:", error);
+      alert("Error exporting data");
+    }
+  };
 
   return (
     <div className="p-6 lg:p-8">
@@ -134,6 +166,15 @@ export default function HistoryClient({ initialHistories }: Props) {
           <option>Medium</option>
           <option>Low</option>
         </select>
+
+        <button
+          onClick={handleExport}
+          className="flex items-center gap-2 px-4 py-3 bg-slate-700/50 hover:bg-slate-700 text-slate-200 rounded-xl  transition-all"
+        >
+          <Download className="w-4 h-4" />
+          Export to Excel
+        </button>
+
         <div className="md:col-span-2 relative">
           <input
             type="text"
@@ -166,13 +207,13 @@ export default function HistoryClient({ initialHistories }: Props) {
                   <span>{new Date(item.timestamp).toLocaleString()}</span>
                 </div>
               </div>
-           <button 
-      onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
-      disabled={deletingId === item.id}
-      className="text-red-400 hover:text-red-300 transition-colors p-2"
-    >
-      {deletingId === item.id ? <Loader2 className="animate-spin w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
-    </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
+                disabled={deletingId === item.id}
+                className="text-red-400 hover:text-red-300 transition-colors p-2"
+              >
+                {deletingId === item.id ? <Loader2 className="animate-spin w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
+              </button>
             </div>
 
             <div className="flex flex-wrap gap-2">

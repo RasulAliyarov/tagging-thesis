@@ -9,6 +9,9 @@ from core.config import settings
 from pydantic import BaseModel
 from bson import ObjectId
 from fastapi.encoders import jsonable_encoder
+from io import BytesIO
+from fastapi.responses import StreamingResponse
+from openpyxl.styles import PatternFill, Font, Alignment
 
 
 router = APIRouter(prefix="/api/analyze", tags=["Analysis"])
@@ -208,3 +211,64 @@ async def batch_analyze(
             continue
             
     return final_results
+
+
+# Excel export endpoint
+@router.get("/export/excel")
+async def export_to_excel(
+    current_user: dict = Depends(get_current_user),
+    db = Depends(get_db)
+):
+    cursor = db.analyses.find({"owner": current_user["username"]}).sort("num", 1)
+    data = await cursor.to_list(length=1000)
+    
+    if not data:
+        raise HTTPException(status_code=404, detail="No data to export")
+
+    df = pd.DataFrame(data)
+    cols_to_drop = ['_id', 'owner', 'id'] # Убираем лишнее
+    df = df.drop(columns=[col for col in cols_to_drop if col in df.columns])
+
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Analysis')
+        
+        workbook = writer.book
+        worksheet = writer.sheets['Analysis']
+
+        # Стили для заголовков
+        header_fill = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid")
+        header_font = Font(color="FFFFFF", bold=True)
+        
+        # Стили для тональности
+        fills = {
+            "Positive": PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid"), # Green
+            "Negative": PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid"), # Red
+            "Neutral": PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid")   # Gray
+        }
+
+        # Применяем стили
+        for col_idx, column in enumerate(df.columns, 1):
+            cell = worksheet.cell(row=1, column=col_idx)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal="center")
+
+            # Если это колонка sentiment, красим ячейки
+            if column.lower() == 'sentiment':
+                for row_idx in range(2, len(df) + 2):
+                    val = worksheet.cell(row=row_idx, column=col_idx).value
+                    if val in fills:
+                        worksheet.cell(row=row_idx, column=col_idx).fill = fills[val]
+
+        # Автоподбор ширины колонок
+        for column_cells in worksheet.columns:
+            length = max(len(str(cell.value)) for cell in column_cells)
+            worksheet.column_dimensions[column_cells[0].column_letter].width = min(length + 2, 50)
+
+    output.seek(0)
+    return StreamingResponse(
+        output,
+        media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={'Content-Disposition': f'attachment; filename="report.xlsx"'}
+    )

@@ -7,6 +7,7 @@ python-multipart
 google-genai
 pandas
 pydantic[email]
+openpyxl
 
 # Database
 motor
